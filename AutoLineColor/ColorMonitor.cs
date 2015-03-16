@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using ColossalFramework;
 using ICities;
@@ -29,7 +28,7 @@ namespace AutoLineColor
                     return;
 
                 // try and limit how often we are scanning for lines. this ain't that important
-                if (_lastOutputTime.AddSeconds(10) < DateTimeOffset.Now)
+                if (_lastOutputTime.AddSeconds(3) < DateTimeOffset.Now)
                 {
                     _lastOutputTime = DateTimeOffset.Now;
                 }
@@ -68,9 +67,7 @@ namespace AutoLineColor
                     
                     var colorName = colorNames[Random.Range(0, colorNames.Length - 1)];
                     var mycolor = colorName.Color;
-
-                    Helper.PrintValue(transportLine.m_flags.ToString());
-
+                    
                     int stopCount;
                     var districts = GetDistrictsForLine(transportLine, theNetworkManager, theDistrictManager, out stopCount);
 
@@ -107,58 +104,88 @@ namespace AutoLineColor
         private string BuildRandomName(ushort lineNumber, TransportInfo.TransportType transportType, ColorName mycolor, List<string> districts, int stopCount)
         {
             // todo could this be localized?
-
-            Helper.PrintValue(string.Format("Building line name for {0} in {1} with {2} stop counts. {3} {4}", lineNumber, string.Join(",", districts.ToArray()), stopCount, districts.Count, transportType));
-
-            if (transportType == TransportInfo.TransportType.Train)
+            try
             {
-                if (districts.Count == 1)
+                if (transportType == TransportInfo.TransportType.Train)
                 {
-                    var rnd = Random.value;
-                    if (rnd <= .33f)
+                    if (districts.Count == 1)
                     {
-                        return string.Format("#{0} {1} Limited", lineNumber, districts[0]);
+                        if (districts[0] == string.Empty)
+                        {
+                            return string.Format("#{0} {1} Shuttle", lineNumber, districts[0]);
+                        }
+
+                        var rnd = Random.value;
+                        if (rnd <= .33f)
+                        {
+                            return string.Format("#{0} {1} Limited", lineNumber, districts[0]);
+                        }
+
+                        if (rnd <= .66f)
+                        {
+                            return string.Format("#{0} {1} Service", lineNumber, districts[0]);
+                        }
+
+                        return string.Format("#{0} {1} Shuttle", lineNumber, districts[0]);
                     }
-                    else if (rnd <= .66f)
+                    if (districts.Count == 2)
                     {
-                        return string.Format("#{0} {1} Service", lineNumber, districts[0]);
+                        if (string.IsNullOrEmpty(districts[0]) || string.IsNullOrEmpty(districts[1]))
+                        {
+                            return string.Format("#{0} {1} Shuttle", lineNumber, districts[0]);
+                        }
+
+                        var rnd = Random.value;
+                        if (rnd <= .33f)
+                        {
+                            return string.Format("#{0} {1}&{2}", lineNumber, districts[0].Substring(0, 1),
+                                districts[1].Substring(0, 1));
+                        }
+                        if (rnd <= .5)
+                        {
+                            return string.Format("#{0} {1} Zephr", lineNumber, districts[0].Substring(0, 1));
+                        }
+                        if (rnd <= .7)
+                        {
+                            return string.Format("#{0} {1} Flyer", lineNumber, districts[0].Substring(0, 1));
+                        }
+                        return string.Format("#{0} {1} & {2}", lineNumber, districts[0], districts[1]);
                     }
-                    return string.Format("#{0} {1} Shuttle", lineNumber, districts[0]);
-                }
-                if (districts.Count == 2)
-                {
-                    var rnd = Random.value;
-                    if (rnd <= .33f)
-                    {
-                        return string.Format("#{0} {1}&{2}", lineNumber, districts[0].Substring(0,1), districts[1].Substring(0,1));
-                    }
-                    if (rnd <= .5)
-                    {
-                        return string.Format("#{0} {1} Zephr", lineNumber, districts[0].Substring(0, 1));
-                    }
-                    if (rnd <= .7)
-                    {
-                        return string.Format("#{0} {1} Flyer", lineNumber, districts[0].Substring(0, 1));
-                    }
-                    return string.Format("#{0} {1} & {2}", lineNumber, districts[0], districts[1]);
+
+                    return string.Format("#{0} {1} Unlimited", lineNumber, mycolor.Name);
+
                 }
 
-                return string.Format("#{0} {1} Unlimited", lineNumber, mycolor.Name);
+                if (transportType == TransportInfo.TransportType.Bus ||
+                    transportType == TransportInfo.TransportType.Metro)
+                {
+                    if (districts.Count == 1)
+                    {
+                        if (string.IsNullOrEmpty(districts[0]))
+                        {
+                            return string.Format("#{0} {1} Line", lineNumber, mycolor.Name);
+                        }
 
+                        return string.Format("#{0} {1} Local", lineNumber, districts[0]);
+                    }
+
+                    if (districts.Count == 2 && string.IsNullOrEmpty(districts[0]) && string.IsNullOrEmpty(districts[1]))
+                        return string.Format("#{0} {1} Line", lineNumber, mycolor.Name);
+
+
+                    if (districts.Count == 2 && stopCount <= 4)
+                        return string.Format("#{0} {1} / {2} Express", lineNumber, districts[0], districts[1]);
+
+                    if (districts.Count == 2)
+                        return string.Format("#{0} {1} / {2} Line", lineNumber, districts[0], districts[1]);
+
+                    return string.Format("#{0} {1} Line", lineNumber, mycolor.Name);
+                }
             }
-
-            if (transportType== TransportInfo.TransportType.Bus || transportType == TransportInfo.TransportType.Metro)
+            catch (Exception ex)
             {
-                if (districts.Count == 1)
-                    return string.Format("#{0} {1} Local", lineNumber, districts[0]);
-
-                if (districts.Count == 2 && stopCount <= 4)
-                    return string.Format("#{0} {1} / {2} Express", lineNumber, districts[0], districts[1]);
-
-                if (districts.Count == 2)
-                    return string.Format("#{0} {1} / {2} Line", lineNumber, districts[0], districts[1]);
-
-                return string.Format("#{0} {1} Line", lineNumber, mycolor.Name);  
+                // if we get an exception we'll just drop back to Line number and color name
+                Helper.PrintValue(ex.ToString());
             }
 
             return string.Format("#{0} {1} Line", lineNumber, mycolor.Name);
@@ -166,7 +193,6 @@ namespace AutoLineColor
 
         private static List<string> GetDistrictsForLine(TransportLine transportLine, NetManager theNetworkManager, DistrictManager theDistrictManager, out int stopCount)
         {
-            // 
             var stop = TransportLine.GetPrevStop(transportLine.m_stops);
             var firstStop = stop;
             stopCount = 0;
@@ -176,10 +202,19 @@ namespace AutoLineColor
                 stopCount++;
                 var position = theNetworkManager.m_nodes.m_buffer[stop].m_position;
                 var district = theDistrictManager.GetDistrict(position);
-                var districtName = theDistrictManager.GetDistrictName(district);
-                districtName = districtName.Trim(); 
-                if (districts.Contains(districtName) == false)
-                    districts.Add(districtName);
+                if (district != 0)
+                {
+                    var districtName = theDistrictManager.GetDistrictName(district);
+                    districtName = districtName.Trim();
+                    if (districts.Contains(districtName) == false)
+                        districts.Add(districtName);
+                }
+                else
+                {
+                    if (districts.Contains(string.Empty) == false)
+                        districts.Add(string.Empty);
+                }
+
 
                 stop = TransportLine.GetNextStop(stop);
                 if (stop == firstStop)

@@ -24,7 +24,6 @@ namespace AutoLineColor
 
         public static Dictionary<TransportInfo.TransportType, ColorName[]> BuildColorMap()
         {
-            Helper.PrintValue("Building color map");
             const string blueColors = @"#98AFC7	Gray
                                         #657383	Slate
                                         #616D7E	Jet
@@ -135,8 +134,6 @@ namespace AutoLineColor
                         .ToArray()
                 }
             };
-            Helper.PrintValue("Color map complete with " + colorMap.Count);
-            Helper.PrintValue(colorMap[TransportInfo.TransportType.Metro].Count().ToString());
             return colorMap;
         }
 
