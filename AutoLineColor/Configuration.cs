@@ -12,7 +12,7 @@ namespace AutoLineColor
         public ColorStrategy ColorStrategy { get; set; }
         public NamingStrategy NamingStrategy { get; set; }
 
-        private const string ConfigFileName = "Settings.xml";
+        private const string ConfigFileName = "AutoLineColorSettings.xml";
         private const string ModName = "AutoLineColor";
 
         public static Configuration LoadConfig()
@@ -47,14 +47,14 @@ namespace AutoLineColor
 
         public static string GetModFileName(string fileName)
         {
-            return Path.Combine(Path.Combine(DataLocation.modsPath, ModName), fileName);           
+            return fileName;           
         }
 
         private static Configuration GetDefaultConfig()
         {
             return new Configuration
             {
-                ColorStrategy = ColorStrategy.RandomHue,
+                ColorStrategy = ColorStrategy.RandomColor,
                 NamingStrategy = NamingStrategy.Districts
             };
         }

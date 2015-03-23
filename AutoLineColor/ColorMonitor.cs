@@ -19,6 +19,7 @@ namespace AutoLineColor
 
         public override void OnCreated(IThreading threading)
         {
+            
             Console.Message("loading auto color monitor");
             Console.Message("initializing colors");
             RandomColor.Initialize();
