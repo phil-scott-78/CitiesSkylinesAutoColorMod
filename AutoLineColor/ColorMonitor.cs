@@ -1,9 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Threading;
+using AutoLineColor.Coloring;
+using AutoLineColor.Naming;
 using ColossalFramework;
+using ColossalFramework.Plugins;
 using ICities;
-using Random = UnityEngine.Random;
 
 namespace AutoLineColor
 {
@@ -11,13 +12,55 @@ namespace AutoLineColor
     {
         private static DateTimeOffset _lastOutputTime = DateTimeOffset.Now.AddSeconds(-100);
         private bool _initialized;
-        private Dictionary<TransportInfo.TransportType, ColorName[]> _colorMap;
+        private IColorStrategy _colorStrategy;
+        private INamingStrategy _namingStrategy;
+
+
 
         public override void OnCreated(IThreading threading)
         {
-            _colorMap = ColorName.BuildColorMap();
+            Console.Message("loading auto color monitor");
+            Console.Message("initializing colors");
+            RandomColor.Initialize();
+
+            Console.Message("loading current config");
+            var config = Configuration.LoadConfig();
+            _colorStrategy = SetColorStrategy(config.ColorStrategy);
+            _namingStrategy = SetNamingStrategy(config.NamingStrategy);
+
+            Console.Message("Found color strategy of " + config.ColorStrategy);
+            Console.Message("Found naming strategy of " + config.NamingStrategy);
+
             _initialized = true;
             base.OnCreated(threading);
+        }
+
+        private static INamingStrategy SetNamingStrategy(NamingStrategy namingStrategy)
+        {
+            switch (namingStrategy)
+            {
+                case NamingStrategy.None:
+                    return new NoNamingStrategy();
+                case NamingStrategy.Districts:
+                    return new DistrictNamingStrategy();
+                default:
+                    Console.Error("unknown naming strategy");
+                    return new NoNamingStrategy();
+            }
+        }
+
+        private static IColorStrategy SetColorStrategy(ColorStrategy colorStrategy)
+        {
+            switch (colorStrategy)
+            {
+                case ColorStrategy.RandomHue:
+                    return new RandomHueStrategy();
+                case ColorStrategy.RandomColor:
+                    return new RandomColorStrategy();
+                default:
+                    Console.Error("unknown color strategy");
+                    return new RandomHueStrategy();
+            }
         }
 
         public override void OnUpdate(float realTimeDelta, float simulationTimeDelta)
@@ -28,201 +71,86 @@ namespace AutoLineColor
                     return;
 
                 // try and limit how often we are scanning for lines. this ain't that important
-                if (_lastOutputTime.AddSeconds(3) < DateTimeOffset.Now)
-                {
-                    _lastOutputTime = DateTimeOffset.Now;
-                }
-                else
-                {
+                if (_lastOutputTime.AddMilliseconds(250) >= DateTimeOffset.Now)
                     return;
-                }
+
+                _lastOutputTime = DateTimeOffset.Now;
 
                 var theTransportManager = Singleton<TransportManager>.instance;
-                var theNetworkManager = Singleton<NetManager>.instance;
-                var theDistrictManager = Singleton<DistrictManager>.instance;
+                var lines = theTransportManager.m_lines.m_buffer;
 
-                var lines = theTransportManager.m_lines;
-                if (theTransportManager.m_lines == null)
-                    return;
 
-                for (ushort counter = 0; counter < lines.m_buffer.Length - 1; counter++)
+                for (ushort counter = 0; counter < lines.Length - 1; counter++)
                 {
-                    var transportLine = lines.m_buffer[counter];
+                    var transportLine = lines[counter];
                     // only worry about fully created lines 
-                    if ((transportLine.m_flags & TransportLine.Flags.Created) != TransportLine.Flags.Created) continue;
-                    if ((transportLine.m_flags & TransportLine.Flags.Hidden) == TransportLine.Flags.Hidden) continue;
-                    
-                    // stations are marked with this flag
-                    if ((transportLine.m_flags & TransportLine.Flags.Temporary) == TransportLine.Flags.Temporary) continue;
-
-                    // if we already have a color and a name then we are set 
-                    if ((transportLine.m_flags & TransportLine.Flags.CustomColor) == TransportLine.Flags.CustomColor &&
-                        (transportLine.m_flags & TransportLine.Flags.CustomName) == TransportLine.Flags.CustomName)
+                    if (transportLine.IsActive() == false || transportLine.HasCustomColor() || transportLine.HasCustomName())
                         continue;
 
-                    // get random color based on the transport type
-                    var colorNames = _colorMap[transportLine.Info.m_transportType];
-                    if (colorNames == null)
-                        continue;
-                    
-                    var colorName = colorNames[Random.Range(0, colorNames.Length - 1)];
-                    var mycolor = colorName.Color;
-                    
-                    int stopCount;
-                    var districts = GetDistrictsForLine(transportLine, theNetworkManager, theDistrictManager, out stopCount);
+                    var lineName = _namingStrategy.GetName(transportLine);
+                    var color = _colorStrategy.GetColor(transportLine);
 
-                    var myName = BuildRandomName(transportLine.m_lineNumber, transportLine.Info.m_transportType, colorName, districts, stopCount);
+                    Console.Message(string.Format("New line found. {0} {1}", lineName, color));
 
-                    while (!Monitor.TryEnter(lines.m_buffer, SimulationManager.SYNCHRONIZE_TIMEOUT))
+                    while (!Monitor.TryEnter(lines, SimulationManager.SYNCHRONIZE_TIMEOUT))
                     {
                     }
                     try
                     {
-                        // set the color
-                        transportLine.m_color = mycolor;
-                        transportLine.m_flags |= TransportLine.Flags.CustomColor;
                         
-                        // set the name
-                        Singleton<InstanceManager>.instance.SetName(new InstanceID {TransportLine = counter}, myName);
-                        transportLine.m_flags |= TransportLine.Flags.CustomName;
+                        // set the color
+                        transportLine.m_color = color;
+                        transportLine.m_flags |= TransportLine.Flags.CustomColor;
 
-                        lines.m_buffer[counter] = transportLine;
+                        if (string.IsNullOrEmpty(lineName) == false)
+                        {
+                            // set the name
+                            Singleton<InstanceManager>.instance.SetName(new InstanceID {TransportLine = counter},
+                                lineName);
+                            transportLine.m_flags |= TransportLine.Flags.CustomName;
+                        }
+
+                        lines[counter] = transportLine;
                     }
                     finally
                     {
-                        Monitor.Exit(Monitor.TryEnter(lines.m_buffer));
+                        Monitor.Exit(Monitor.TryEnter(lines));
                     }
                 }
             }
             catch (Exception ex)
             {
-                Helper.PrintValue(ex.ToString());
+                Console.Message(ex.ToString(), PluginManager.MessageType.Message);
             }
            
         }
+    }
 
-        private string BuildRandomName(ushort lineNumber, TransportInfo.TransportType transportType, ColorName mycolor, List<string> districts, int stopCount)
+    internal static class LineExtensions
+    {
+        public static bool IsActive(this TransportLine transportLine)
         {
-            // todo could this be localized?
-            try
-            {
-                if (transportType == TransportInfo.TransportType.Train)
-                {
-                    if (districts.Count == 1)
-                    {
-                        if (districts[0] == string.Empty)
-                        {
-                            return string.Format("#{0} {1} Shuttle", lineNumber, districts[0]);
-                        }
+            if ((transportLine.m_flags & TransportLine.Flags.Created) != TransportLine.Flags.Created) 
+                return false;
 
-                        var rnd = Random.value;
-                        if (rnd <= .33f)
-                        {
-                            return string.Format("#{0} {1} Limited", lineNumber, districts[0]);
-                        }
+            if ((transportLine.m_flags & TransportLine.Flags.Hidden) == TransportLine.Flags.Hidden) 
+                return false;
 
-                        if (rnd <= .66f)
-                        {
-                            return string.Format("#{0} {1} Service", lineNumber, districts[0]);
-                        }
+            // stations are marked with this flag
+            if ((transportLine.m_flags & TransportLine.Flags.Temporary) == TransportLine.Flags.Temporary) 
+                return false;
 
-                        return string.Format("#{0} {1} Shuttle", lineNumber, districts[0]);
-                    }
-                    if (districts.Count == 2)
-                    {
-                        if (string.IsNullOrEmpty(districts[0]) || string.IsNullOrEmpty(districts[1]))
-                        {
-                            return string.Format("#{0} {1} Shuttle", lineNumber, districts[0]);
-                        }
-
-                        var rnd = Random.value;
-                        if (rnd <= .33f)
-                        {
-                            return string.Format("#{0} {1}&{2}", lineNumber, districts[0].Substring(0, 1),
-                                districts[1].Substring(0, 1));
-                        }
-                        if (rnd <= .5)
-                        {
-                            return string.Format("#{0} {1} Zephr", lineNumber, districts[0].Substring(0, 1));
-                        }
-                        if (rnd <= .7)
-                        {
-                            return string.Format("#{0} {1} Flyer", lineNumber, districts[0].Substring(0, 1));
-                        }
-                        return string.Format("#{0} {1} & {2}", lineNumber, districts[0], districts[1]);
-                    }
-
-                    return string.Format("#{0} {1} Unlimited", lineNumber, mycolor.Name);
-
-                }
-
-                if (transportType == TransportInfo.TransportType.Bus ||
-                    transportType == TransportInfo.TransportType.Metro)
-                {
-                    if (districts.Count == 1)
-                    {
-                        if (string.IsNullOrEmpty(districts[0]))
-                        {
-                            return string.Format("#{0} {1} Line", lineNumber, mycolor.Name);
-                        }
-
-                        return string.Format("#{0} {1} Local", lineNumber, districts[0]);
-                    }
-
-                    if (districts.Count == 2 && string.IsNullOrEmpty(districts[0]) && string.IsNullOrEmpty(districts[1]))
-                        return string.Format("#{0} {1} Line", lineNumber, mycolor.Name);
-
-
-                    if (districts.Count == 2 && stopCount <= 4)
-                        return string.Format("#{0} {1} / {2} Express", lineNumber, districts[0], districts[1]);
-
-                    if (districts.Count == 2)
-                        return string.Format("#{0} {1} / {2} Line", lineNumber, districts[0], districts[1]);
-
-                    return string.Format("#{0} {1} Line", lineNumber, mycolor.Name);
-                }
-            }
-            catch (Exception ex)
-            {
-                // if we get an exception we'll just drop back to Line number and color name
-                Helper.PrintValue(ex.ToString());
-            }
-
-            return string.Format("#{0} {1} Line", lineNumber, mycolor.Name);
+            return true;
         }
 
-        private static List<string> GetDistrictsForLine(TransportLine transportLine, NetManager theNetworkManager, DistrictManager theDistrictManager, out int stopCount)
+        public static bool HasCustomColor(this TransportLine transportLine)
         {
-            var stop = TransportLine.GetPrevStop(transportLine.m_stops);
-            var firstStop = stop;
-            stopCount = 0;
-            var districts = new List<string>();
-            while (stop != 0)
-            {
-                stopCount++;
-                var position = theNetworkManager.m_nodes.m_buffer[stop].m_position;
-                var district = theDistrictManager.GetDistrict(position);
-                if (district != 0)
-                {
-                    var districtName = theDistrictManager.GetDistrictName(district);
-                    districtName = districtName.Trim();
-                    if (districts.Contains(districtName) == false)
-                        districts.Add(districtName);
-                }
-                else
-                {
-                    if (districts.Contains(string.Empty) == false)
-                        districts.Add(string.Empty);
-                }
-
-
-                stop = TransportLine.GetNextStop(stop);
-                if (stop == firstStop)
-                    break;
-            }
-            return districts;
+            return (transportLine.m_flags & TransportLine.Flags.CustomColor) == TransportLine.Flags.CustomColor;
         }
 
-        
+        public static bool HasCustomName(this TransportLine transportLine)
+        {
+            return (transportLine.m_flags & TransportLine.Flags.CustomName) == TransportLine.Flags.CustomName;
+        }
     }
 }
