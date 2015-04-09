@@ -66,62 +66,66 @@ namespace AutoLineColor
 
         public override void OnUpdate(float realTimeDelta, float simulationTimeDelta)
         {
+            var theTransportManager = Singleton<TransportManager>.instance;
+            var lines = theTransportManager.m_lines.m_buffer;
+
             try
             {
                 if (_initialized == false)
                     return;
 
                 // try and limit how often we are scanning for lines. this ain't that important
-                if (_lastOutputTime.AddMilliseconds(250) >= DateTimeOffset.Now)
+                if (_lastOutputTime.AddMilliseconds(1000) >= DateTimeOffset.Now)
                     return;
 
                 _lastOutputTime = DateTimeOffset.Now;
 
-                var theTransportManager = Singleton<TransportManager>.instance;
-                var lines = theTransportManager.m_lines.m_buffer;
-
+                while (!Monitor.TryEnter(lines, SimulationManager.SYNCHRONIZE_TIMEOUT))
+                {
+                }
 
                 for (ushort counter = 0; counter < lines.Length - 1; counter++)
                 {
                     var transportLine = lines[counter];
+                    if (transportLine.m_flags == TransportLine.Flags.None)
+                        continue;
+
                     // only worry about fully created lines 
-                    if (transportLine.IsActive() == false || transportLine.HasCustomColor() || transportLine.HasCustomName())
+                    if (transportLine.IsActive() == false || (transportLine.HasCustomColor() && transportLine.HasCustomName()))
                         continue;
 
                     var lineName = _namingStrategy.GetName(transportLine);
                     var color = _colorStrategy.GetColor(transportLine);
 
                     Console.Message(string.Format("New line found. {0} {1}", lineName, color));
-
-                    while (!Monitor.TryEnter(lines, SimulationManager.SYNCHRONIZE_TIMEOUT))
+                    
+                    if (transportLine.HasCustomColor() == false)
                     {
-                    }
-                    try
-                    {
-                        
                         // set the color
                         transportLine.m_color = color;
                         transportLine.m_flags |= TransportLine.Flags.CustomColor;
-
-                        if (string.IsNullOrEmpty(lineName) == false)
-                        {
-                            // set the name
-                            Singleton<InstanceManager>.instance.SetName(new InstanceID {TransportLine = counter},
-                                lineName);
-                            transportLine.m_flags |= TransportLine.Flags.CustomName;
-                        }
-
-                        lines[counter] = transportLine;
                     }
-                    finally
+
+                    if (string.IsNullOrEmpty(lineName) == false && transportLine.HasCustomName() == false)
                     {
-                        Monitor.Exit(Monitor.TryEnter(lines));
+                        // set the name
+                        Singleton<InstanceManager>.instance.SetName(new InstanceID {TransportLine = counter},
+                            lineName);
+                        transportLine.m_flags |= TransportLine.Flags.CustomName;
                     }
+
+                    lines[counter] = transportLine;
+                    
+
                 }
             }
             catch (Exception ex)
             {
                 Console.Message(ex.ToString(), PluginManager.MessageType.Message);
+            }
+            finally
+            {
+                Monitor.Exit(Monitor.TryEnter(lines));
             }
            
         }
