@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-using ColossalFramework.IO;
+using System.Linq;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
@@ -73,7 +73,6 @@ namespace AutoLineColor.Coloring
             return colorList.ToArray();
         }
 
-
         private static bool TryHexToColor(string hex, out Color32 color)
         {
             try
@@ -105,6 +104,48 @@ namespace AutoLineColor.Coloring
                 return false;
             }
 
+        }
+
+        public static Color32 GetColor(ColorFamily colorFamily, List<Color32> usedColors)
+        {
+            Color32 color;
+            double difference;
+            var atempts = 0;
+            do
+            {
+                atempts++;
+                color = GetColor(colorFamily);
+                difference = CompareColors(color, usedColors.First());
+                foreach (var usedColor in usedColors)
+                {
+                    var auxDifference = CompareColors(color, usedColor);
+                    if (auxDifference < difference)
+                    {
+                        difference = auxDifference;
+                    }
+                }
+                Console.Message(string.Format("Diference: {0}", difference));
+            } while (difference < Configuration.Instance.MinimumColorDifferencePercentage && (atempts < Configuration.Instance.MaximunDifferentCollorPickAtempt));
+            return color;
+        }
+
+        public static double CompareColors(Color32 color1, Color32 color2)
+        {
+            var r1 = color1.r;
+            var r2 = color2.r;
+            var g1 = color1.g;
+            var g2 = color2.g;
+            var b1 = color1.b;
+            var b2 = color2.b;
+            var a1 = color1.a;
+            var a2 = color2.a;
+
+            var d = Math.Sqrt(Math.Abs((r2 - r1) ^ 2 + (g2 - g1) ^ 2 + (b2 - b1) ^ 2 + (a2 - a1) ^ 2));
+            var p = d / Math.Sqrt((255) ^ 2 + (255) ^ 2 + (255) ^ 2 + (255) ^ 2);
+
+            if (p == 0)
+                Console.Message(string.Format("Color1: {1} Color2: {2} D: {0}", d, color1, color2));
+            return p * 100;
         }
     }
 }

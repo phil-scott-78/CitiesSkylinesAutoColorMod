@@ -11,6 +11,8 @@ namespace AutoLineColor
     {
         public ColorStrategy ColorStrategy { get; set; }
         public NamingStrategy NamingStrategy { get; set; }
+        public int MinimumColorDifferencePercentage { get; set; }
+        public int MaximunDifferentCollorPickAtempt { get; set; }
 
         private const string ConfigFileName = "AutoLineColorSettings.xml";
         private const string ModName = "AutoLineColor";
@@ -35,7 +37,7 @@ namespace AutoLineColor
 
                 using (var reader = XmlReader.Create(fullConfigPath))
                 {
-                    return (Configuration) serializer.Deserialize(reader);
+                    return (Configuration)serializer.Deserialize(reader);
                 }
             }
             catch (Exception ex)
@@ -47,7 +49,7 @@ namespace AutoLineColor
 
         public static string GetModFileName(string fileName)
         {
-            return fileName;           
+            return fileName;
         }
 
         private static Configuration GetDefaultConfig()
@@ -55,9 +57,25 @@ namespace AutoLineColor
             return new Configuration
             {
                 ColorStrategy = ColorStrategy.RandomColor,
-                NamingStrategy = NamingStrategy.Districts
+                NamingStrategy = NamingStrategy.Districts,
+                MaximunDifferentCollorPickAtempt = 10,
+                MinimumColorDifferencePercentage = 5
             };
         }
+
+        private static Configuration _instance;
+        public static Configuration Instance
+        {
+            get
+            {
+                if (_instance == null)
+                {
+                    _instance = LoadConfig();
+                }
+                return _instance;
+            }
+        }
+
     }
 
     public enum ColorStrategy
