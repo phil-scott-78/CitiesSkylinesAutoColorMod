@@ -5,6 +5,9 @@ using AutoLineColor.Naming;
 using ColossalFramework;
 using ColossalFramework.Plugins;
 using ICities;
+using UnityEngine;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace AutoLineColor
 {
@@ -14,12 +17,11 @@ namespace AutoLineColor
         private bool _initialized;
         private IColorStrategy _colorStrategy;
         private INamingStrategy _namingStrategy;
-
-
+        private List<Color32> _usedColors;
 
         public override void OnCreated(IThreading threading)
         {
-            
+
             Console.Message("loading auto color monitor");
             Console.Message("initializing colors");
             RandomColor.Initialize();
@@ -28,6 +30,7 @@ namespace AutoLineColor
             var config = Configuration.LoadConfig();
             _colorStrategy = SetColorStrategy(config.ColorStrategy);
             _namingStrategy = SetNamingStrategy(config.NamingStrategy);
+            _usedColors = new List<Color32>();
 
             Console.Message("Found color strategy of " + config.ColorStrategy);
             Console.Message("Found naming strategy of " + config.NamingStrategy);
@@ -81,8 +84,9 @@ namespace AutoLineColor
                 _lastOutputTime = DateTimeOffset.Now;
 
                 while (!Monitor.TryEnter(lines, SimulationManager.SYNCHRONIZE_TIMEOUT))
-                {
-                }
+                { }
+
+                _usedColors = lines.Where(l => l.IsActive()).Select(l => l.m_color).ToList();
 
                 for (ushort counter = 0; counter < lines.Length - 1; counter++)
                 {
@@ -95,10 +99,10 @@ namespace AutoLineColor
                         continue;
 
                     var lineName = _namingStrategy.GetName(transportLine);
-                    var color = _colorStrategy.GetColor(transportLine);
+                    var color = _colorStrategy.GetColor(transportLine, _usedColors);
 
                     Console.Message(string.Format("New line found. {0} {1}", lineName, color));
-                    
+
                     if (transportLine.HasCustomColor() == false)
                     {
                         // set the color
@@ -109,14 +113,12 @@ namespace AutoLineColor
                     if (string.IsNullOrEmpty(lineName) == false && transportLine.HasCustomName() == false)
                     {
                         // set the name
-                        Singleton<InstanceManager>.instance.SetName(new InstanceID {TransportLine = counter},
+                        Singleton<InstanceManager>.instance.SetName(new InstanceID { TransportLine = counter },
                             lineName);
                         transportLine.m_flags |= TransportLine.Flags.CustomName;
                     }
 
                     lines[counter] = transportLine;
-                    
-
                 }
             }
             catch (Exception ex)
@@ -127,7 +129,7 @@ namespace AutoLineColor
             {
                 Monitor.Exit(Monitor.TryEnter(lines));
             }
-           
+
         }
     }
 
@@ -135,14 +137,14 @@ namespace AutoLineColor
     {
         public static bool IsActive(this TransportLine transportLine)
         {
-            if ((transportLine.m_flags & TransportLine.Flags.Created) != TransportLine.Flags.Created) 
+            if ((transportLine.m_flags & TransportLine.Flags.Created) != TransportLine.Flags.Created)
                 return false;
 
-            if ((transportLine.m_flags & TransportLine.Flags.Hidden) == TransportLine.Flags.Hidden) 
+            if ((transportLine.m_flags & TransportLine.Flags.Hidden) == TransportLine.Flags.Hidden)
                 return false;
 
             // stations are marked with this flag
-            if ((transportLine.m_flags & TransportLine.Flags.Temporary) == TransportLine.Flags.Temporary) 
+            if ((transportLine.m_flags & TransportLine.Flags.Temporary) == TransportLine.Flags.Temporary)
                 return false;
 
             return true;
