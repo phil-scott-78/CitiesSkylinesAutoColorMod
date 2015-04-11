@@ -103,11 +103,15 @@ namespace AutoLineColor
 
                     Console.Message(string.Format("New line found. {0} {1}", lineName, color));
 
-                    if (transportLine.HasCustomColor() == false)
+                    if (transportLine.HasCustomColor() == false || transportLine.m_color.IsColorEqual(new Color32(44,142,191,255)))
                     {
                         // set the color
                         transportLine.m_color = color;
                         transportLine.m_flags |= TransportLine.Flags.CustomColor;
+                    }
+                    else
+                    {
+                        Console.Message(transportLine.m_color.ToString());
                     }
 
                     if (string.IsNullOrEmpty(lineName) == false && transportLine.HasCustomName() == false)
@@ -135,6 +139,11 @@ namespace AutoLineColor
 
     internal static class LineExtensions
     {
+        public static bool IsColorEqual(this Color32 color1, Color32 color2)
+        {
+            return (color1.r == color2.r && color1.g == color2.g && color1.b == color2.b && color1.a == color2.a);
+        }
+
         public static bool IsActive(this TransportLine transportLine)
         {
             if ((transportLine.m_flags & TransportLine.Flags.Created) != TransportLine.Flags.Created)

@@ -1,9 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Globalization;
 using System.IO;
-using ColossalFramework.IO;
+using System.Linq;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
@@ -107,15 +106,14 @@ namespace AutoLineColor.Coloring
 
         }
 
-        public static Color32 GetColor(ColorFamily colorFamily, System.Collections.Generic.List<Color32> usedColors)
+        public static Color32 GetColor(ColorFamily colorFamily, List<Color32> usedColors)
         {
             Color32 color;
-            double difference = double.MaxValue;
+            double difference;
             var atempts = 0;
             do
             {
                 atempts++;
-                difference = double.MaxValue;
                 color = GetColor(colorFamily);
                 difference = CompareColors(color, usedColors.First());
                 foreach (var usedColor in usedColors)
