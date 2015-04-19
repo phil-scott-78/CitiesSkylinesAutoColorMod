@@ -88,6 +88,7 @@ namespace AutoLineColor
     public enum NamingStrategy
     {
         None,
-        Districts
+        Districts,
+        London
     }
 }

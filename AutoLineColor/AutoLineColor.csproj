@@ -67,6 +67,8 @@
     <Compile Include="Coloring\RandomHueStrategy.cs" />
     <Compile Include="Coloring\CategorisedColor.cs" />
     <Compile Include="Coloring\CategorisedColorStrategy.cs" />
+    <Compile Include="Naming\LondonNamingStrategy.cs" />
+    <Compile Include="Naming\GenericNames.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

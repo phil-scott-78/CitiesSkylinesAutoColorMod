@@ -26,6 +26,7 @@ namespace AutoLineColor
             Console.Message("initializing colors");
             RandomColor.Initialize();
             CategorisedColor.Initialize();
+            GenericNames.Initialize();
 
             Console.Message("loading current config");
             var config = Configuration.LoadConfig();
@@ -48,6 +49,8 @@ namespace AutoLineColor
                     return new NoNamingStrategy();
                 case NamingStrategy.Districts:
                     return new DistrictNamingStrategy();
+                case NamingStrategy.London:
+                    return new LondonNamingStrategy();
                 default:
                     Console.Error("unknown naming strategy");
                     return new NoNamingStrategy();
