@@ -95,7 +95,7 @@ namespace AutoLineColor
                         continue;
 
                     // only worry about fully created lines 
-                    if (transportLine.IsActive() == false || (transportLine.HasCustomColor() && transportLine.HasCustomName()))
+                    if (!transportLine.IsActive() || transportLine.HasCustomName() || !transportLine.m_color.IsDefaultColor())
                         continue;
 
                     var lineName = _namingStrategy.GetName(transportLine);
@@ -103,7 +103,7 @@ namespace AutoLineColor
 
                     Console.Message(string.Format("New line found. {0} {1}", lineName, color));
 
-                    if (transportLine.HasCustomColor() == false || transportLine.m_color.IsColorEqual(new Color32(44,142,191,255)))
+                    if (!transportLine.HasCustomColor() || transportLine.m_color.IsDefaultColor())
                     {
                         // set the color
                         transportLine.m_color = color;
@@ -139,6 +139,18 @@ namespace AutoLineColor
 
     internal static class LineExtensions
     {
+        private static Color32 _defaultBusColor = new Color32(44,142,191,255);
+        private static Color32 _defaultMetroColor = new Color32(0,184,0,255);
+        private static Color32 _defaultTrainColor = new Color32(219,86,0,255);
+
+        public static bool IsDefaultColor(this Color32 color)
+        {
+            return (
+                color.IsColorEqual(_defaultBusColor) ||
+                color.IsColorEqual(_defaultMetroColor) ||
+                color.IsColorEqual(_defaultTrainColor));
+        }
+
         public static bool IsColorEqual(this Color32 color1, Color32 color2)
         {
             return (color1.r == color2.r && color1.g == color2.g && color1.b == color2.b && color1.a == color2.a);
