@@ -25,6 +25,7 @@ namespace AutoLineColor
             Console.Message("loading auto color monitor");
             Console.Message("initializing colors");
             RandomColor.Initialize();
+            CategorisedColor.Initialize();
 
             Console.Message("loading current config");
             var config = Configuration.LoadConfig();
@@ -61,6 +62,8 @@ namespace AutoLineColor
                     return new RandomHueStrategy();
                 case ColorStrategy.RandomColor:
                     return new RandomColorStrategy();
+                case ColorStrategy.CategorisedColor:
+                    return new CategorisedColorStrategy();
                 default:
                     Console.Error("unknown color strategy");
                     return new RandomHueStrategy();

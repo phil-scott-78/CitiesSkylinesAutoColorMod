@@ -81,7 +81,8 @@ namespace AutoLineColor
     public enum ColorStrategy
     {
         RandomHue,
-        RandomColor
+        RandomColor,
+        CategorisedColor
     }
 
     public enum NamingStrategy
