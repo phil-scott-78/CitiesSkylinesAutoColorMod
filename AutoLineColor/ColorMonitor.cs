@@ -161,10 +161,7 @@ namespace AutoLineColor
 
         public static bool IsActive(this TransportLine transportLine)
         {
-            if ((transportLine.m_flags & TransportLine.Flags.Created) != TransportLine.Flags.Created)
-                return false;
-
-            if ((transportLine.m_flags & TransportLine.Flags.Hidden) == TransportLine.Flags.Hidden)
+            if ((transportLine.m_flags & (TransportLine.Flags.Complete | TransportLine.Flags.Created | TransportLine.Flags.Hidden)) == 0)
                 return false;
 
             // stations are marked with this flag
