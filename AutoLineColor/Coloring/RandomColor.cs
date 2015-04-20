@@ -34,7 +34,7 @@ namespace AutoLineColor.Coloring
         {
             return _colors[colorFamily][Random.Range(0, _colors[colorFamily].Length - 1)];
         }
-        
+
         private static Color32[] BuildColorList(string defaultColorList, string fileName)
         {
             // we need to load the color list
@@ -63,7 +63,7 @@ namespace AutoLineColor.Coloring
             var colorList = new List<Color32>();
             foreach (var colorHexValue in colorHexValues)
             {
-                
+
                 Color32 color;
                 if (TryHexToColor(colorHexValue, out color))
                 {
@@ -77,7 +77,7 @@ namespace AutoLineColor.Coloring
         {
             try
             {
-                
+
                 hex = hex.Replace("0x", ""); //in case the string is formatted 0xFFFFFF
                 hex = hex.Replace("#", ""); //in case the string is formatted #FFFFFF
                 hex = hex.Trim();
@@ -115,18 +115,50 @@ namespace AutoLineColor.Coloring
             {
                 atempts++;
                 color = GetColor(colorFamily);
-                difference = CompareColors(color, usedColors.First());
+                difference = CompareColorWithUsedColors(usedColors, color);
+
+            } while (difference < Configuration.Instance.MinimumColorDifferencePercentage && (atempts < Configuration.Instance.MaximunDifferentCollorPickAtempt));
+
+            if (difference <= 0)
+            {
                 foreach (var usedColor in usedColors)
                 {
-                    var auxDifference = CompareColors(color, usedColor);
-                    if (auxDifference < difference)
+                    var differentColorFound = false;
+                    foreach (var colorItem in _colors[colorFamily])
                     {
-                        difference = auxDifference;
+                        if (!usedColor.IsColorEqual(colorItem))
+                        {
+                            color = colorItem;
+                            differentColorFound = true;
+                            Console.Message(string.Format("Color not repeated: {0} Color2: {2} Diference: {1}", color, CompareColorWithUsedColors(usedColors, color), usedColor));
+                            break;
+                        }
                     }
+                    if (differentColorFound)
+                        break;
                 }
-                Console.Message(string.Format("Diference: {0}", difference));
-            } while (difference < Configuration.Instance.MinimumColorDifferencePercentage && (atempts < Configuration.Instance.MaximunDifferentCollorPickAtempt));
+
+            }
+
+            Console.Message(string.Format("Diference: {0} Atempts: {1}", difference, atempts));
+
             return color;
+        }
+
+        private static double CompareColorWithUsedColors(IEnumerable<Color32> usedColors, Color32 color)
+        {
+            var difference = double.MaxValue;
+            foreach (var usedColor in usedColors)
+            {
+                var auxDifference = CompareColors(color, usedColor);
+                if (auxDifference < difference)
+                {
+                    difference = auxDifference;
+                    if (difference <= 0)
+                        return 0;
+                }
+            }
+            return difference;
         }
 
         public static double CompareColors(Color32 color1, Color32 color2)
@@ -137,13 +169,13 @@ namespace AutoLineColor.Coloring
             var g2 = color2.g;
             var b1 = color1.b;
             var b2 = color2.b;
-            var a1 = color1.a;
-            var a2 = color2.a;
+            //var a1 = color1.a;
+            //var a2 = color2.a;
 
-            var d = Math.Sqrt(Math.Abs((r2 - r1) ^ 2 + (g2 - g1) ^ 2 + (b2 - b1) ^ 2 + (a2 - a1) ^ 2));
-            var p = d / Math.Sqrt((255) ^ 2 + (255) ^ 2 + (255) ^ 2 + (255) ^ 2);
+            var d = Math.Sqrt(Math.Abs((r2 - r1) ^ 2 + (g2 - g1) ^ 2 + (b2 - b1) ^ 2));
+            var p = d / Math.Sqrt((255) ^ 2 + (255) ^ 2 + (255) ^ 2 );
 
-            if (p == 0)
+            if (Math.Abs(p) <= 0)
                 Console.Message(string.Format("Color1: {1} Color2: {2} D: {0}", d, color1, color2));
             return p * 100;
         }
