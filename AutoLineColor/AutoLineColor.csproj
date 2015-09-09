@@ -58,6 +58,7 @@
     <Compile Include="ColorMonitor.cs" />
     <Compile Include="Configuration.cs" />
     <Compile Include="Console.cs" />
+    <Compile Include="Constants.cs" />
     <Compile Include="Naming\DistrictNamingStrategy.cs" />
     <Compile Include="Coloring\IColorStrategy.cs" />
     <Compile Include="Naming\INamingStrategy.cs" />

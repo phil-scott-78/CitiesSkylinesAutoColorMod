@@ -2,7 +2,6 @@
 using System.IO;
 using System.Xml;
 using System.Xml.Serialization;
-using ColossalFramework.IO;
 
 namespace AutoLineColor
 {
@@ -14,45 +13,79 @@ namespace AutoLineColor
         public int? MinimumColorDifferencePercentage { get; set; }
         public int? MaximunDifferentCollorPickAtempt { get; set; }
 
-        private const string ConfigFileName = "AutoLineColorSettings.xml";
-        private const string ModName = "AutoLineColor";
+        private const int DefaultMaxDiffColorPickAttempt = 10;
+        private const int DefaultMinColorDiffPercent = 5;
+
+        private static Configuration _instance;
 
         public static Configuration LoadConfig()
         {
+            bool isDirty = false;
+            Configuration config;
             try
             {
                 var serializer = new XmlSerializer(typeof(Configuration));
-                Configuration config;
+                var fullConfigPath = Constants.ConfigFileName;
 
-                var fullConfigPath = GetModFileName(ConfigFileName);
                 if (File.Exists(fullConfigPath) == false)
                 {
                     Console.Message("No config file. Building default and writing it to " + fullConfigPath);
                     config = GetDefaultConfig();
-                    SaveConfig(config);
-                    return config;
+                    isDirty = true;
                 }
-
-
-                using (var reader = XmlReader.Create(fullConfigPath))
+                else
                 {
-                    config = (Configuration)serializer.Deserialize(reader);
-                }
-                //check new configuration properties
-                if (!config.MaximunDifferentCollorPickAtempt.HasValue || !config.MinimumColorDifferencePercentage.HasValue)
-                {
-                    var defaultConfig = GetDefaultConfig();
-                    config.MinimumColorDifferencePercentage = defaultConfig.MinimumColorDifferencePercentage;
-                    config.MaximunDifferentCollorPickAtempt = defaultConfig.MaximunDifferentCollorPickAtempt;
-                    SaveConfig(config);
-                }
-                return config;
+                    using (var reader = XmlReader.Create(fullConfigPath)) {
+                        config = (Configuration)serializer.Deserialize(reader);
+                    }
 
+                    //check new configuration properties
+                    if (!config.MaximunDifferentCollorPickAtempt.HasValue ||
+                        !config.MinimumColorDifferencePercentage.HasValue) {
+                        
+                        config.MaximunDifferentCollorPickAtempt = config.MaximunDifferentCollorPickAtempt.HasValue ?
+                        config.MaximunDifferentCollorPickAtempt : DefaultMaxDiffColorPickAttempt;
+                        config.MinimumColorDifferencePercentage = config.MinimumColorDifferencePercentage.HasValue ?
+                            config.MinimumColorDifferencePercentage : DefaultMinColorDiffPercent;
+
+                        isDirty = true;
+                    }
+                }
             }
             catch (Exception ex)
             {
+                //Don't save changes if it failed for some reason
                 Console.Error("Error reading configuration settings - " + ex);
-                return GetDefaultConfig();
+                config = GetDefaultConfig();
+            }
+
+            if (isDirty) {
+                config.Save();
+            }
+
+            return config;
+        }
+
+        public void ColorStrategyChange(int Strategy) {
+            this.ColorStrategy = (ColorStrategy)Strategy;
+        }
+
+        public void NamingStrategyChange(int Strategy) {
+            this.NamingStrategy = (NamingStrategy)Strategy;
+        }
+
+        public void MinColorDiffChange(float MinDiff) {
+            this.MinimumColorDifferencePercentage = (int)MinDiff;
+        }
+
+        public void MaxDiffColorPickChange(float MaxColorPicks) {
+            this.MaximunDifferentCollorPickAtempt = (int)MaxColorPicks;
+        }
+
+        public void Save() {
+            var serializer = new XmlSerializer(typeof(Configuration));
+            using (var writer = XmlWriter.Create(Constants.ConfigFileName)) {
+                serializer.Serialize(writer, this);
             }
         }
 
@@ -67,20 +100,11 @@ namespace AutoLineColor
             {
                 ColorStrategy = ColorStrategy.RandomColor,
                 NamingStrategy = NamingStrategy.Districts,
-                MaximunDifferentCollorPickAtempt = 10,
-                MinimumColorDifferencePercentage = 5
+                MaximunDifferentCollorPickAtempt = DefaultMaxDiffColorPickAttempt,
+                MinimumColorDifferencePercentage = DefaultMinColorDiffPercent
             };
         }
-        private static void SaveConfig(Configuration config)
-        {
-            var serializer = new XmlSerializer(typeof(Configuration));
-            using (var writer = XmlWriter.Create(GetModFileName(ConfigFileName)))
-            {
-                serializer.Serialize(writer, config);
-            }
-        }
 
-        private static Configuration _instance;
         public static Configuration Instance
         {
             get
@@ -92,7 +116,6 @@ namespace AutoLineColor
                 return _instance;
             }
         }
-
     }
 
     public enum ColorStrategy
