@@ -10,22 +10,26 @@ namespace AutoLineColor
 {
     public class Console
     {
-#if DEBUG
-        private bool debug = true;
-#else
-        private bool debug = false;
-#endif
         private static Console _instance;
+        private bool _debug = false;
 
         private StreamWriter log;
         private bool log_opened;
 
-        private Console() {
-            try {
+        private Console()
+        {
+#if DEBUG
+            _debug = true;
+#endif
+            try
+            {
                 log = new StreamWriter(new FileStream(Constants.LogFileName, FileMode.Append | FileMode.Create, FileAccess.Write, FileShare.ReadWrite));
-            } catch (Exception e) {
+            }
+            catch (Exception e)
+            {
                 WriteMessage("Could not open log file", PluginManager.MessageType.Warning);
             }
+
             log_opened = true;
         }
 
@@ -41,16 +45,37 @@ namespace AutoLineColor
             }
         }
 
+        public bool debug
+        {
+            get
+            {
+                return _debug;
+            }
+        }
+
         private static string FormatMessage(string msg, PluginManager.MessageType Type)
         {
             string formatted;
-            try {
+            try
+            {
                 formatted = string.Format("{0}({1}) {2}", "[AutoLineColor]", Type.ToString(), msg);
-            } catch (Exception e) {
+            }
+            catch (Exception e)
+            {
                 DebugOutputPanel.AddMessage(PluginManager.MessageType.Error, e.ToString());
                 formatted = msg;
             }
             return formatted;
+        }
+
+        public void ToggleDebug()
+        {
+            _debug = !_debug;
+        }
+
+        public void SetDebug(bool should_debug)
+        {
+            _debug = should_debug;
         }
 
         public void Message(string p, PluginManager.MessageType messageType)
@@ -72,8 +97,9 @@ namespace AutoLineColor
             this.WriteMessage(p, PluginManager.MessageType.Error);
         }
 
-        private void WriteMessage(string p, PluginManager.MessageType Type) {
-            if(!this.debug)
+        private void WriteMessage(string p, PluginManager.MessageType Type)
+        {
+            if(!this._debug)
             {
                 return;
             }
@@ -83,7 +109,7 @@ namespace AutoLineColor
                 log.WriteLine(msg);
                 log.Flush();
             }
-            
+
             //Unity engine logger
             switch(Type)
             {
@@ -100,7 +126,6 @@ namespace AutoLineColor
                     Debug.Log(msg);
                     break;
             }
-            
         }
     }
 }
