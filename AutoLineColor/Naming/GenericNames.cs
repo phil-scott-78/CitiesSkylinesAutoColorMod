@@ -17,6 +17,7 @@ namespace AutoLineColor
             "November,Oscar,Papa,Quebec,Romeo,Sierra,Tango,Uniform,Victor,Whiskey,Yankee,Zulu," +
             "Adams,Boston,Chicago,Denver,Easy,Frank,George,Henry,Ida,John,King,Lincoln,Mary," +
             "New,Ocean,Peter,Queen,Roger,Sugar,Thomas,Union,Victor,William,Young,Zero";
+        private static Console logger = Console.Instance;
 
         public static void Initialize()
         {
@@ -31,13 +32,13 @@ namespace AutoLineColor
                 }
                 else
                 {
-                    Console.Message("No names found, writing default values to " + fullPath);
+                    logger.Message("No names found, writing default values to " + fullPath);
                     File.WriteAllText(fullPath, unparsedNames);
                 }
             }
             catch (Exception ex)
             {
-                Console.Error("error reading names from disk " + ex);
+                logger.Error("error reading names from disk " + ex);
             }
 
             // split on new lines, commas and semi-colons

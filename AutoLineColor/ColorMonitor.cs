@@ -13,29 +13,30 @@ namespace AutoLineColor
 {
     public class ColorMonitor : ThreadingExtensionBase
     {
-        private static DateTimeOffset _lastOutputTime = DateTimeOffset.Now.AddSeconds(-100);
+        private static DateTimeOffset _lastOutputTime = DateTimeOffset.Now;
         private bool _initialized;
         private IColorStrategy _colorStrategy;
         private INamingStrategy _namingStrategy;
         private List<Color32> _usedColors;
+        private Configuration _config;
+        private static Console logger = Console.Instance;
 
         public override void OnCreated(IThreading threading)
         {
-
-            Console.Message("loading auto color monitor");
-            Console.Message("initializing colors");
+            logger.Message("loading auto color monitor");
+            logger.Message("initializing colors");
             RandomColor.Initialize();
             CategorisedColor.Initialize();
             GenericNames.Initialize();
 
-            Console.Message("loading current config");
-            var config = Configuration.LoadConfig();
-            _colorStrategy = SetColorStrategy(config.ColorStrategy);
-            _namingStrategy = SetNamingStrategy(config.NamingStrategy);
+            logger.Message("loading current config");
+            _config = Configuration.Instance;
+            _colorStrategy = SetColorStrategy(_config.ColorStrategy);
+            _namingStrategy = SetNamingStrategy(_config.NamingStrategy);
             _usedColors = new List<Color32>();
 
-            Console.Message("Found color strategy of " + config.ColorStrategy);
-            Console.Message("Found naming strategy of " + config.NamingStrategy);
+            logger.Message("Found color strategy of " + _config.ColorStrategy);
+            logger.Message("Found naming strategy of " + _config.NamingStrategy);
 
             _initialized = true;
             base.OnCreated(threading);
@@ -43,6 +44,7 @@ namespace AutoLineColor
 
         private static INamingStrategy SetNamingStrategy(NamingStrategy namingStrategy)
         {
+            logger.Message("Naming Strategy: " + namingStrategy.ToString());
             switch (namingStrategy)
             {
                 case NamingStrategy.None:
@@ -52,13 +54,14 @@ namespace AutoLineColor
                 case NamingStrategy.London:
                     return new LondonNamingStrategy();
                 default:
-                    Console.Error("unknown naming strategy");
+                    logger.Error("unknown naming strategy");
                     return new NoNamingStrategy();
             }
         }
 
-        private static IColorStrategy SetColorStrategy(ColorStrategy colorStrategy)
+        private IColorStrategy SetColorStrategy(ColorStrategy colorStrategy)
         {
+            logger.Message("Color Strategy: " + colorStrategy.ToString());
             switch (colorStrategy)
             {
                 case ColorStrategy.RandomHue:
@@ -68,7 +71,7 @@ namespace AutoLineColor
                 case ColorStrategy.CategorisedColor:
                     return new CategorisedColorStrategy();
                 default:
-                    Console.Error("unknown color strategy");
+                    logger.Error("unknown color strategy");
                     return new RandomHueStrategy();
             }
         }
@@ -77,6 +80,14 @@ namespace AutoLineColor
         {
             var theTransportManager = Singleton<TransportManager>.instance;
             var lines = theTransportManager.m_lines.m_buffer;
+
+            //Digest changes
+            if (_config.UndigestedChanges == true) {
+                logger.Message("Applying undigested changes");
+                _colorStrategy = SetColorStrategy(_config.ColorStrategy);
+                _namingStrategy = SetNamingStrategy(_config.NamingStrategy);
+                _config.UndigestedChanges = false;
+            }
 
             try
             {
@@ -89,14 +100,14 @@ namespace AutoLineColor
 
                 _lastOutputTime = DateTimeOffset.Now;
 
-                while (!Monitor.TryEnter(lines, SimulationManager.SYNCHRONIZE_TIMEOUT))
-                { }
+                while (!Monitor.TryEnter(lines, SimulationManager.SYNCHRONIZE_TIMEOUT)) { }
 
                 _usedColors = lines.Where(l => l.IsActive()).Select(l => l.m_color).ToList();
 
                 for (ushort counter = 0; counter < lines.Length - 1; counter++)
                 {
                     var transportLine = lines[counter];
+
                     if (transportLine.m_flags == TransportLine.Flags.None)
                         continue;
 
@@ -107,24 +118,22 @@ namespace AutoLineColor
                     var lineName = _namingStrategy.GetName(transportLine);
                     var color = _colorStrategy.GetColor(transportLine, _usedColors);
 
-                    Console.Message(string.Format("New line found. {0} {1}", lineName, color));
-
                     if (!transportLine.HasCustomColor() || transportLine.m_color.IsDefaultColor())
                     {
                         // set the color
                         transportLine.m_color = color;
                         transportLine.m_flags |= TransportLine.Flags.CustomColor;
-                    }
-                    else
-                    {
-                        Console.Message(transportLine.m_color.ToString());
+                        logger.Message(string.Format("Changed line color. '{0}' {1} -> {2}", lineName, transportLine.m_color, color));
                     }
 
                     if (string.IsNullOrEmpty(lineName) == false && transportLine.HasCustomName() == false)
                     {
                         // set the name
-                        Singleton<InstanceManager>.instance.SetName(new InstanceID { TransportLine = counter },
-                            lineName);
+                        var line = Singleton<InstanceManager>.instance;
+                        var instanceID = new InstanceID { TransportLine = counter };
+                        logger.Message(string.Format("Renamed Line '{0}' -> '{1}'", line.GetName(instanceID), lineName));
+
+                        line.SetName(instanceID, lineName);
                         transportLine.m_flags |= TransportLine.Flags.CustomName;
                     }
 
@@ -133,7 +142,7 @@ namespace AutoLineColor
             }
             catch (Exception ex)
             {
-                Console.Message(ex.ToString(), PluginManager.MessageType.Message);
+                logger.Error(ex.ToString());
             }
             finally
             {

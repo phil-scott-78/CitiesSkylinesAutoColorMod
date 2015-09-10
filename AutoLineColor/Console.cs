@@ -4,39 +4,103 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using UnityEngine;
 
 namespace AutoLineColor
 {
-    public static class Console
+    public class Console
     {
 #if DEBUG
-        private static bool debug = true;
+        private bool debug = true;
 #else
-        private static bool debug = false;
+        private bool debug = false;
 #endif
+        private static Console _instance;
 
-        public static void Message(string p, PluginManager.MessageType messageType)
-        {
-            if (!debug)
-                return;
+        private StreamWriter log;
+        private bool log_opened;
 
-            DebugOutputPanel.AddMessage(messageType, p);
+        private Console() {
+            try {
+                log = new StreamWriter(new FileStream(Constants.LogFileName, FileMode.Append | FileMode.Create, FileAccess.Write, FileShare.ReadWrite));
+            } catch (Exception e) {
+                WriteMessage("Could not open log file", PluginManager.MessageType.Warning);
+            }
+            log_opened = true;
         }
 
-        public static void Message(string p)
+        public static Console Instance
         {
-            if (!debug)
-                return;
-
-            DebugOutputPanel.AddMessage(PluginManager.MessageType.Message, p);
+            get
+            {
+                if (_instance == null)
+                {
+                    _instance = new Console();
+                }
+                return _instance;
+            }
         }
 
-        internal static void Error(string p)
+        private static string FormatMessage(string msg, PluginManager.MessageType Type)
         {
-            if (!debug)
-                return;
+            string formatted;
+            try {
+                formatted = string.Format("{0}({1}) {2}", "[AutoLineColor]", Type.ToString(), msg);
+            } catch (Exception e) {
+                DebugOutputPanel.AddMessage(PluginManager.MessageType.Error, e.ToString());
+                formatted = msg;
+            }
+            return formatted;
+        }
 
-            DebugOutputPanel.AddMessage(PluginManager.MessageType.Error, p);
+        public void Message(string p, PluginManager.MessageType messageType)
+        {
+            this.WriteMessage(p, messageType);
+        }
+
+        public void Message(string p)
+        {
+            this.WriteMessage(p, PluginManager.MessageType.Message);
+        }
+
+        public void Warning(string p) {
+            this.WriteMessage(p, PluginManager.MessageType.Warning);
+        }
+
+        public void Error(string p)
+        {
+            this.WriteMessage(p, PluginManager.MessageType.Error);
+        }
+
+        private void WriteMessage(string p, PluginManager.MessageType Type) {
+            if(!this.debug)
+            {
+                return;
+            }
+            string msg = FormatMessage(p, Type);
+            DebugOutputPanel.AddMessage(Type, msg);
+            if (log_opened) {
+                log.WriteLine(msg);
+                log.Flush();
+            }
+            
+            //Unity engine logger
+            switch(Type)
+            {
+                case PluginManager.MessageType.Error:
+                    Debug.LogError(msg);
+                    break;
+                case PluginManager.MessageType.Message:
+                    Debug.Log(msg);
+                    break;
+                case PluginManager.MessageType.Warning:
+                    Debug.LogWarning(msg);
+                    break;
+                default:
+                    Debug.Log(msg);
+                    break;
+            }
+            
         }
     }
 }

@@ -19,7 +19,6 @@ namespace AutoLineColor.Coloring
             }
         }
 
-
         public Color32 GetColor(TransportLine transportLine, System.Collections.Generic.List<Color32> usedColors)
         {
             switch (transportLine.Info.m_transportType)

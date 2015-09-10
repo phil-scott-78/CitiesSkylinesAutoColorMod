@@ -17,6 +17,7 @@ namespace AutoLineColor.Coloring
         private const string DefaultGreenColors = "#6af500, #54b807, #7ad633, #8df53d, #467a1f, #66a832, #629939, #527a33, #87c756, #b6f587, #75995a, #a9d687, #97b87f, #738a62, #349912, #54d629, #3d8a24, #56b835, #83f55d, #87e667, #70b858, #629950, #8ed676, #7fb86c, #567a49, #b8f5a4, #087a00, #13a808, #2f7a2a, #45a83e, #427a3e, #a0f59a, #9cd698, #0be625, #3ed650, #4ef562, #6bd678, #7ff58d, #65b86f, #57995f, #79b880, #547a59, #06b83b, #048a2c, #2ab855, #28994a, #49e678, #2f8a4a, #367a4a, #74d691, #89f5a9, #5d996f, #93e6ac, #7fb890, #98d6ab";
         private const string DefaultOrangeColors = "#a80000, #c70202, #e51515, #991212, #c71c1c, #e52c2c, #b82727, #992525, #f52f02, #b82504, #991f03, #e5411c, #99311a, #b84025, #f55d3b, #d65133, #b84402, #f55e07, #d65911, #99400c, #c7632a, #a85525, #f57d38, #e58005, #c76f04, #a86718, #f5992a, #c7812c, #996423, #997000, #b88806, #f5bc20, #d6a51e, #a88628, #d6c400, #a89c16, #f5e322, #c7ba2c";
 
+        private static Console logger = Console.Instance;
         private static Dictionary<ColorFamily, Color32[]> _colors;
 
         public static void Initialize()
@@ -49,13 +50,13 @@ namespace AutoLineColor.Coloring
                 }
                 else
                 {
-                    Console.Message("No colors found, writing default values to  " + fullPath);
+                    logger.Message("No colors found, writing default values to  " + fullPath);
                     File.WriteAllText(fullPath, unparsedColors);
                 }
             }
             catch (Exception ex)
             {
-                Console.Error("error reading colors from disk " + ex);
+                logger.Error("error reading colors from disk " + ex);
             }
 
             // split on new lines, commas and semi-colons
@@ -117,7 +118,7 @@ namespace AutoLineColor.Coloring
                 color = GetColor(colorFamily);
                 difference = CompareColorWithUsedColors(usedColors, color);
 
-            } while (difference < Configuration.Instance.MinimumColorDifferencePercentage && (atempts < Configuration.Instance.MaximunDifferentCollorPickAtempt));
+            } while (difference < Configuration.Instance.MinColorDiffPercentage && (atempts < Configuration.Instance.MaxDiffColorPickAttempt));
 
             if (difference <= 0)
             {
@@ -130,7 +131,7 @@ namespace AutoLineColor.Coloring
                         {
                             color = colorItem;
                             differentColorFound = true;
-                            Console.Message(string.Format("Color not repeated: {0} Color2: {2} Diference: {1}", color, CompareColorWithUsedColors(usedColors, color), usedColor));
+                            logger.Message(string.Format("Color not repeated: {0} Color2: {2} Diference: {1}", color, CompareColorWithUsedColors(usedColors, color), usedColor));
                             break;
                         }
                     }
@@ -140,7 +141,7 @@ namespace AutoLineColor.Coloring
 
             }
 
-            Console.Message(string.Format("Diference: {0} Atempts: {1}", difference, atempts));
+            logger.Message(string.Format("Diference: {0} Atempts: {1}", difference, atempts));
 
             return color;
         }
@@ -176,7 +177,7 @@ namespace AutoLineColor.Coloring
             var p = d / Math.Sqrt((255) ^ 2 + (255) ^ 2 + (255) ^ 2 );
 
             if (Math.Abs(p) <= 0)
-                Console.Message(string.Format("Color1: {1} Color2: {2} D: {0}", d, color1, color2));
+                logger.Message(string.Format("Color1: {1} Color2: {2} D: {0}", d, color1, color2));
             return p * 100;
         }
     }

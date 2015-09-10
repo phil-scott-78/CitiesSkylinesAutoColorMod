@@ -8,6 +8,7 @@ namespace AutoLineColor.Naming
 {
     internal class DistrictNamingStrategy : INamingStrategy
     {
+        private static Console logger = Console.Instance;
         public string GetName(TransportLine transportLine)
         {
             int stopCount; 
@@ -99,7 +100,7 @@ namespace AutoLineColor.Naming
             catch (Exception ex)
             {
                 // if we get an exception we'll just drop back to Line number and color name
-                Console.Message(ex.ToString(), PluginManager.MessageType.Message);
+                logger.Error(ex.ToString());
             }
 
             return string.Format("#{0} Line", lineNumber);

@@ -53,7 +53,7 @@ namespace AutoLineColor.Coloring
         private const string DefaultPaleColors = "#bccaff, #ffbcbc, #bcffd2, #d6bcff, #fffbbc, #bcddff, #ffbcc6, #bcf7bd, #c2bcff, #ffe4bc, #bcf3ff, #ffbce0, #c7ffbc, #bcbcff, #ffc1bc, #bcffe8, #f5bcff, #daffbc, #a6baff, #ffa6a6, #a6ffc4, #cba6ff, #fffaa6, #a6d3ff, #ffa6b5, #a6f5a8, #afa6ff, #ffdda6, #a6efff, #ffa6d7, #b6ffa6, #a6a7ff, #ffaea6, #a6ffe1, #f3a6ff, #d0ffa6, #7f9eff, #ff7f7f, #7fffae, #b77fff, #fff97f, #7fc3ff, #ff7f97, #7ff282, #8d7fff, #ffd17f, #7feaff, #ff7fc9, #97ff7f, #7f80ff, #ff8c7f, #7fffd7, #ef7fff, #bfff7f";
         private const string DefaultDarkColors = "#7f2200, #007f64, #75007f, #527f00, #00377f, #7f0100, #007f45, #4c007f, #7f7b00, #00567f, #7f002f, #007710, #24007f, #7f6000, #00727f, #7f005a, #307f00, #000a7f";
 
-
+        private static Console logger = Console.Instance;
         private static List<Color32> _bright_colors;
         private static List<Color32> _pale_colors;
         private static List<Color32> _dark_colors;
@@ -80,13 +80,13 @@ namespace AutoLineColor.Coloring
                 }
                 else
                 {
-                    Console.Message("No colors found, writing default values to  " + fullPath);
+                    logger.Message("No colors found, writing default values to  " + fullPath);
                     File.WriteAllText(fullPath, unparsedColors);
                 }
             }
             catch (Exception ex)
             {
-                Console.Error("error reading colors from disk " + ex);
+                logger.Error("error reading colors from disk " + ex);
             }
 
             // split on new lines, commas and semi-colons

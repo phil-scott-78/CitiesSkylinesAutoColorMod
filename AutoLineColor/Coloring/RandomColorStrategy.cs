@@ -9,7 +9,7 @@ namespace AutoLineColor.Coloring
         {
             return RandomColor.GetColor(ColorFamily.Any);
         }
-        
+
         public Color32 GetColor(TransportLine transportLine, System.Collections.Generic.List<Color32> usedColors)
         {
             return RandomColor.GetColor(ColorFamily.Any, usedColors);
