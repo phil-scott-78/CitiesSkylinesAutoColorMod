@@ -38,6 +38,8 @@ namespace AutoLineColor
             Console.Message("Found naming strategy of " + config.NamingStrategy);
 
             _initialized = true;
+
+            logger.Message("done creating");
             base.OnCreated(threading);
         }
 
@@ -83,26 +85,38 @@ namespace AutoLineColor
                 if (_initialized == false)
                     return;
 
+
                 // try and limit how often we are scanning for lines. this ain't that important
                 if (_lastOutputTime.AddMilliseconds(1000) >= DateTimeOffset.Now)
                     return;
+
+
 
                 _lastOutputTime = DateTimeOffset.Now;
 
                 while (!Monitor.TryEnter(lines, SimulationManager.SYNCHRONIZE_TIMEOUT))
                 { }
 
+                
                 _usedColors = lines.Where(l => l.IsActive()).Select(l => l.m_color).ToList();
 
                 for (ushort counter = 0; counter < lines.Length - 1; counter++)
                 {
                     var transportLine = lines[counter];
+<<<<<<< Updated upstream
+=======
+
+
+>>>>>>> Stashed changes
                     if (transportLine.m_flags == TransportLine.Flags.None)
                         continue;
+
 
                     // only worry about fully created lines 
                     if (!transportLine.IsActive() || transportLine.HasCustomName() || !transportLine.m_color.IsDefaultColor())
                         continue;
+
+                    logger.Message("work to be done!");
 
                     var lineName = _namingStrategy.GetName(transportLine);
                     var color = _colorStrategy.GetColor(transportLine, _usedColors);
@@ -122,6 +136,7 @@ namespace AutoLineColor
 
                     if (string.IsNullOrEmpty(lineName) == false && transportLine.HasCustomName() == false)
                     {
+                        logger.Message("New line name time!");
                         // set the name
                         Singleton<InstanceManager>.instance.SetName(new InstanceID { TransportLine = counter },
                             lineName);
@@ -145,13 +160,14 @@ namespace AutoLineColor
 
     internal static class LineExtensions
     {
+        private static Color32 _blackColor = new Color32(0, 0, 0, 0);
         private static Color32 _defaultBusColor = new Color32(44,142,191,255);
         private static Color32 _defaultMetroColor = new Color32(0,184,0,255);
         private static Color32 _defaultTrainColor = new Color32(219,86,0,255);
 
         public static bool IsDefaultColor(this Color32 color)
         {
-            return (
+            return (color.IsColorEqual(_blackColor) ||
                 color.IsColorEqual(_defaultBusColor) ||
                 color.IsColorEqual(_defaultMetroColor) ||
                 color.IsColorEqual(_defaultTrainColor));

@@ -67,7 +67,7 @@ namespace AutoLineColor.Naming
 
                 stop = TransportLine.GetNextStop (stop);
                 stopCount++;
-            } while (stop != firstStop);
+            } while (stopCount < 25 && stop != firstStop);
         }
 
         private static string GetInitials(string words)
